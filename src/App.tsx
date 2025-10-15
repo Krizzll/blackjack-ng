@@ -724,7 +724,7 @@ function HelpOverlay({ onClose }: { onClose: () => void }) {
 
 // ===================== Main App =====================
 export default function App() {
-  const WS_URL = "ws://localhost:8080";
+  const WS_URL = "wss://railway.com/project/aabc019a-7f0b-4a56-8e73-8982c6eff1f3/service/1b89951d-ddfd-4d06-a7ff-db1faf74aeb6?environmentId=c0a60841-6d27-4dec-a3de-ec5add13c01a&id=e01da3bf-7bdd-4913-83b5-7ffcb49aba3e#deploy";
   const { connected, state, send, joinRoom, reconnecting } = useWs(WS_URL);
   const { sounds, muted, setMuted } = useSounds();
   
