@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { MessageCircle, TrendingUp, HelpCircle, Volume2, VolumeX, Palette } from "lucide-react";
 
@@ -724,7 +724,7 @@ function HelpOverlay({ onClose }: { onClose: () => void }) {
 
 // ===================== Main App =====================
 export default function App() {
-  const WS_URL = "wss://railway.com/project/aabc019a-7f0b-4a56-8e73-8982c6eff1f3/service/1b89951d-ddfd-4d06-a7ff-db1faf74aeb6/settings?environmentId=c0a60841-6d27-4dec-a3de-ec5add13c01a";
+  const WS_URL = "ws://localhost:8080";
   const { connected, state, send, joinRoom, reconnecting } = useWs(WS_URL);
   const { sounds, muted, setMuted } = useSounds();
   
@@ -744,6 +744,8 @@ export default function App() {
   });
   const [showHelp, setShowHelp] = useState(false);
   const [lastBet, setLastBet] = useState(0);
+  const [showResult, setShowResult] = useState(false);
+  const [myResult, setMyResult] = useState<string | null>(null);
 
   const prevPhaseRef = useRef<string | null>(null);
 
@@ -773,6 +775,16 @@ export default function App() {
     if (state?.phase === "RESULT" && prevPhaseRef.current !== "RESULT") {
       const me = state.players.find(p => p.name === name);
       if (me?.result) {
+        // Show result overlay
+        setMyResult(me.result);
+        setShowResult(true);
+        
+        // Hide after 3 seconds
+        setTimeout(() => {
+          setShowResult(false);
+        }, 3000);
+
+        // Update stats
         const newStats = { ...stats };
         newStats.gamesPlayed++;
         if (me.result === "WIN" || me.result === "BLACKJACK") {
@@ -782,7 +794,7 @@ export default function App() {
             newStats.bestStreak = newStats.currentStreak;
           }
           if (me.result === "BLACKJACK") newStats.blackjacks++;
-        } else if (me.result === "LOSE") {
+        } else if (me.result === "LOSE" || me.result === "BUST") {
           newStats.losses++;
           newStats.currentStreak = 0;
         } else {
@@ -895,6 +907,11 @@ export default function App() {
       {/* Shuffle Animation */}
       <AnimatePresence>
         {state?.phase === "SHUFFLING" && <ShuffleAnimation sounds={sounds} />}
+      </AnimatePresence>
+
+      {/* Result Overlay */}
+      <AnimatePresence>
+        {showResult && myResult && <ResultOverlay result={myResult} />}
       </AnimatePresence>
 
       <div className="max-w-7xl mx-auto">
@@ -1204,13 +1221,7 @@ export default function App() {
 
                 {state?.phase === "RESULT" && (
                   <div className="text-center space-y-4">
-                    <div className="text-3xl font-bold">
-                      {me?.result === "BLACKJACK" && "🎉 BLACKJACK! 🎉"}
-                      {me?.result === "WIN" && "✨ YOU WIN! ✨"}
-                      {me?.result === "LOSE" && "💔 YOU LOSE 💔"}
-                      {me?.result === "PUSH" && "🤝 PUSH 🤝"}
-                    </div>
-                    <div className="text-lg opacity-80">New round starting soon...</div>
+                    <div className="text-lg opacity-80">Round complete! Next round starting soon...</div>
                   </div>
                 )}
               </div>
