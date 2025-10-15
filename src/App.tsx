@@ -851,6 +851,13 @@ export default function App() {
     if (me) handleBet(me.stack);
   };
 
+  const handleClearBet = () => {
+    const me = state?.players.find(p => p.name === name);
+    if (me && me.bet > 0) {
+      send("clearbet");
+    }
+  };
+
   const handleStart = () => send("start");
   const handleHit = () => { sounds.cardDeal(); send("hit"); };
   const handleStand = () => send("stand");
@@ -1070,7 +1077,7 @@ export default function App() {
                   <PlayerSpot
                     key={player.id}
                     player={player}
-                    isActive={state.phase === "PLAYER" && state.turnIdx === idx}
+                    isActive={state.phase === "PLAYER" && typeof state.turnIdx === 'number' && state.turnIdx === idx}
                     isMe={player.name === name}
                     showWin={state.phase === "RESULT"}
                     sounds={sounds}
