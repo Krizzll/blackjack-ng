@@ -203,7 +203,13 @@ function useWs(url: string) {
     ws.onmessage = (e) => {
       try {
         const data = JSON.parse(e.data);
-        if (data.type === "state") setState(data.state);
+        console.log("📨 Received:", data);
+        if (data.type === "state") {
+          setState(data.state);
+        } else if (data.type === "error") {
+          alert(data.message);
+          setReconnecting(false);
+        }
       } catch (err) {
         console.error("Parse error:", err);
       }
@@ -702,7 +708,7 @@ function HelpOverlay({ onClose }: { onClose: () => void }) {
           </section>
 
           <section>
-            <h3 className="font-bold text-lg mb-2">⌨️ Keyboard Shortcuts</h3>
+            <h3 className="font-bold text-lg mb-2"⌨️ Keyboard Shortcuts</h3>
             <ul className="list-disc list-inside space-y-1">
               <li><b>H:</b> Hit</li>
               <li><b>S:</b> Stand</li>
@@ -724,7 +730,7 @@ function HelpOverlay({ onClose }: { onClose: () => void }) {
 
 // ===================== Main App =====================
 export default function App() {
-  const WS_URL = "wss://blackjack-server-production-0a13.up.railway.app";
+  const WS_URL = "ws://localhost:8080";
   const { connected, state, send, joinRoom, reconnecting } = useWs(WS_URL);
   const { sounds, muted, setMuted } = useSounds();
   
@@ -1014,6 +1020,9 @@ export default function App() {
                 <div>
                   <span className="text-sm opacity-80">Room:</span>
                   <span className="font-mono font-bold text-xl ml-2">{state?.code || roomCode}</span>
+                  <span className="text-sm opacity-60 ml-2">
+                    ({state?.players.length || 0}/8 players)
+                  </span>
                 </div>
                 <div>
                   <span className="text-sm opacity-80">Phase:</span>
@@ -1104,6 +1113,14 @@ export default function App() {
                       <div className="flex justify-between items-center mb-3">
                         <h3 className="font-semibold">Place Your Bet</h3>
                         <div className="flex gap-2">
+                          {me && me.bet > 0 && (
+                            <button
+                              onClick={handleClearBet}
+                              className="text-sm bg-red-600 hover:bg-red-700 px-3 py-1 rounded-lg"
+                            >
+                              ❌ Clear Bet
+                            </button>
+                          )}
                           {lastBet > 0 && (
                             <button
                               onClick={handleRepeatBet}
