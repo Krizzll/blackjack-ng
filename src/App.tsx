@@ -708,7 +708,7 @@ function HelpOverlay({ onClose }: { onClose: () => void }) {
           </section>
 
           <section>
-            <h3 className="font-bold text-lg mb-2"⌨️ Keyboard Shortcuts</h3>
+	    <h3 className="font-bold text-lg mb-2">⌨️ Keyboard Shortcuts</h3>
             <ul className="list-disc list-inside space-y-1">
               <li><b>H:</b> Hit</li>
               <li><b>S:</b> Stand</li>
