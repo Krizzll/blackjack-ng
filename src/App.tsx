@@ -30,8 +30,9 @@ interface GameState {
 
 interface ChatMessage {
   id: string;
-  player: string;
-  message: string;
+  playerId: string;
+  playerName: string;
+  text: string;
   timestamp: number;
 }
 
@@ -126,7 +127,6 @@ function useSounds() {
     try {
       const ctx = new AudioContext();
       
-      // Multiple card sliding sounds in quick succession
       for (let i = 0; i < 8; i++) {
         setTimeout(() => {
           const osc = ctx.createOscillator();
@@ -171,6 +171,7 @@ function useWs(url: string) {
   const [connected, setConnected] = useState(false);
   const [state, setState] = useState<GameState | null>(null);
   const [reconnecting, setReconnecting] = useState(false);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
 
   const connect = () => {
     if (wsRef.current?.readyState === WebSocket.OPEN) return;
@@ -204,7 +205,11 @@ function useWs(url: string) {
       try {
         const data = JSON.parse(e.data);
         console.log("📨 Received:", data);
-        if (data.type === "state") {
+        
+        // FIXED: Chat messages werden jetzt empfangen
+        if (data.type === "chat") {
+          setChatMessages(prev => [...prev, data.message].slice(-50));
+        } else if (data.type === "state") {
           setState(data.state);
         } else if (data.type === "error") {
           alert(data.message);
@@ -236,7 +241,7 @@ function useWs(url: string) {
     wsRef.current.send(JSON.stringify({ type: "join", roomId, payload: { name: playerName } }));
   };
 
-  return { connected, state, send, joinRoom, reconnecting };
+  return { connected, state, send, joinRoom, reconnecting, chatMessages };
 }
 
 // ===================== Utils =====================
@@ -261,6 +266,39 @@ const themes = {
 };
 
 // ===================== Components =====================
+
+// FIXED: Chip Flying Animation Component
+function FlyingChip({ 
+  isWin, 
+  amount, 
+  startPos, 
+  endPos 
+}: { 
+  isWin: boolean; 
+  amount: number; 
+  startPos: { x: number; y: number }; 
+  endPos: { x: number; y: number };
+}) {
+  return (
+    <motion.div
+      initial={{ x: startPos.x, y: startPos.y, scale: 1, opacity: 1 }}
+      animate={{ 
+        x: endPos.x, 
+        y: endPos.y, 
+        scale: isWin ? 1.5 : 0.5,
+        opacity: isWin ? 1 : 0
+      }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.8, ease: "easeInOut" }}
+      className={`fixed w-16 h-16 rounded-full ${
+        isWin ? "bg-gradient-to-br from-green-400 to-green-600" : "bg-gradient-to-br from-red-400 to-red-600"
+      } flex items-center justify-center font-bold text-white shadow-2xl z-50 pointer-events-none`}
+    >
+      ${amount}
+    </motion.div>
+  );
+}
+
 function ResultOverlay({ result }: { result: string }) {
   const config = {
     BLACKJACK: {
@@ -377,7 +415,20 @@ function Confetti() {
   );
 }
 
-function CardComponent({ card, hidden = false, flip = false, playSound = false }: { card: Card; hidden?: boolean; flip?: boolean; playSound?: boolean }) {
+// FIXED: Card Component mit Fly-Animation aus Shoe
+function CardComponent({ 
+  card, 
+  hidden = false, 
+  flip = false, 
+  playSound = false,
+  fromShoe = false 
+}: { 
+  card: Card; 
+  hidden?: boolean; 
+  flip?: boolean; 
+  playSound?: boolean;
+  fromShoe?: boolean;
+}) {
   const isRed = card.suit === "♥" || card.suit === "♦";
   const { sounds } = useSounds();
   const hasPlayedRef = useRef(false);
@@ -392,8 +443,9 @@ function CardComponent({ card, hidden = false, flip = false, playSound = false }
   if (hidden && !flip) {
     return (
       <motion.div
-        initial={{ scale: 0, rotateY: 180 }}
-        animate={{ scale: 1, rotateY: 0 }}
+        initial={fromShoe ? { scale: 0, rotateY: 180, x: -200, y: -300 } : { scale: 0, rotateY: 180 }}
+        animate={{ scale: 1, rotateY: 0, x: 0, y: 0 }}
+        transition={{ type: "spring", stiffness: 150, damping: 15 }}
         className="bg-blue-900 rounded-lg shadow-lg w-16 h-24 sm:w-20 sm:h-28 flex items-center justify-center border-2 border-blue-700"
       >
         <div className="text-4xl">🂠</div>
@@ -403,9 +455,9 @@ function CardComponent({ card, hidden = false, flip = false, playSound = false }
   
   return (
     <motion.div
-      initial={{ scale: 0, rotateY: flip ? 180 : 180, x: -100 }}
-      animate={{ scale: 1, rotateY: 0, x: 0 }}
-      transition={{ type: "spring", stiffness: 200, delay: flip ? 0.5 : 0 }}
+      initial={fromShoe ? { scale: 0, rotateY: 180, x: -200, y: -300 } : { scale: 0, rotateY: flip ? 180 : 180, x: -100 }}
+      animate={{ scale: 1, rotateY: 0, x: 0, y: 0 }}
+      transition={{ type: "spring", stiffness: 150, damping: 15, delay: flip ? 0.5 : 0 }}
       className="bg-white rounded-lg shadow-lg w-16 h-24 sm:w-20 sm:h-28 flex flex-col items-center justify-center border-2 border-gray-300"
     >
       <div className={`text-2xl sm:text-3xl ${isRed ? "text-red-600" : "text-gray-900"}`}>
@@ -520,14 +572,18 @@ function PlayerSpot({
           showWin && isWin ? "ring-4 ring-green-400 shadow-green-500/50" : ""
         }`}
       >
-        <div className="text-center mb-3">
-          <div className="font-bold text-lg">{player.name}</div>
-          <div className="text-sm opacity-80">${player.stack}</div>
+        {/* FIXED: Balance Anzeige übersichtlicher */}
+        <div className="text-center mb-3 bg-black/30 rounded-lg p-2">
+          <div className="font-bold text-xl text-yellow-400">{player.name}</div>
+          <div className="flex items-center justify-center gap-2 mt-1">
+            <span className="text-xs opacity-70">Bank:</span>
+            <span className="text-lg font-bold text-green-400">${player.stack}</span>
+          </div>
         </div>
 
         <div className="flex justify-center gap-2 mb-3 min-h-[7rem]">
           {player.cards.map((card) => (
-            <CardComponent key={card.id} card={card} playSound={true} />
+            <CardComponent key={card.id} card={card} playSound={true} fromShoe={true} />
           ))}
         </div>
 
@@ -537,14 +593,30 @@ function PlayerSpot({
           </div>
         )}
 
+        {/* FIXED: Chip Display - visuell verbessert */}
         {player.bet > 0 && (
           <motion.div
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
-            className="bg-red-600 rounded-full w-20 h-20 mx-auto flex flex-col items-center justify-center font-bold shadow-lg"
+            className="relative mx-auto w-24 h-24"
           >
-            <div className="text-xs">BET</div>
-            <div className="text-lg">${player.bet}</div>
+            {/* Chip Stack Visualization */}
+            <div className="absolute inset-0 flex flex-col items-center justify-center">
+              {[...Array(Math.min(5, Math.floor(player.bet / 100) + 1))].map((_, i) => (
+                <motion.div
+                  key={i}
+                  initial={{ y: 20, opacity: 0 }}
+                  animate={{ y: -i * 4, opacity: 1 }}
+                  transition={{ delay: i * 0.05 }}
+                  className="absolute w-20 h-6 rounded-full bg-gradient-to-br from-red-500 to-red-700 border-4 border-white/30 shadow-lg"
+                  style={{ bottom: `${i * 4}px` }}
+                />
+              ))}
+              <div className="absolute inset-0 flex flex-col items-center justify-center z-10 pointer-events-none">
+                <div className="text-xs font-bold text-white drop-shadow-lg">BET</div>
+                <div className="text-xl font-bold text-white drop-shadow-lg">${player.bet}</div>
+              </div>
+            </div>
           </motion.div>
         )}
 
@@ -573,6 +645,11 @@ function PlayerSpot({
 function ChatPanel({ messages, onSend }: { messages: ChatMessage[]; onSend: (msg: string) => void }) {
   const [input, setInput] = useState("");
   const emojis = ["👍", "🎉", "😅", "🔥", "💰", "😎"];
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
   const handleSend = () => {
     if (input.trim()) {
@@ -589,9 +666,10 @@ function ChatPanel({ messages, onSend }: { messages: ChatMessage[]; onSend: (msg
       <div className="flex-1 overflow-y-auto space-y-2 mb-2">
         {messages.map((msg) => (
           <div key={msg.id} className="text-sm">
-            <span className="font-semibold">{msg.player}:</span> {msg.message}
+            <span className="font-semibold text-yellow-400">{msg.playerName}:</span> {msg.text}
           </div>
         ))}
+        <div ref={messagesEndRef} />
       </div>
       <div className="flex gap-2 mb-2">
         {emojis.map((emoji) => (
@@ -708,7 +786,7 @@ function HelpOverlay({ onClose }: { onClose: () => void }) {
           </section>
 
           <section>
-	    <h3 className="font-bold text-lg mb-2">⌨️ Keyboard Shortcuts</h3>
+            <h3 className="font-bold text-lg mb-2">⌨️ Keyboard Shortcuts</h3>
             <ul className="list-disc list-inside space-y-1">
               <li><b>H:</b> Hit</li>
               <li><b>S:</b> Stand</li>
@@ -731,14 +809,13 @@ function HelpOverlay({ onClose }: { onClose: () => void }) {
 // ===================== Main App =====================
 export default function App() {
   const WS_URL = "wss://blackjack-server-production-0a13.up.railway.app";
-  const { connected, state, send, joinRoom, reconnecting } = useWs(WS_URL);
+  const { connected, state, send, joinRoom, reconnecting, chatMessages } = useWs(WS_URL);
   const { sounds, muted, setMuted } = useSounds();
   
   const [name, setName] = useState("");
   const [roomCode, setRoomCode] = useState("");
   const [joined, setJoined] = useState(false);
   const [theme, setTheme] = useState<Theme>("classic");
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [stats, setStats] = useState<Stats>({
     gamesPlayed: 0,
     wins: 0,
@@ -781,16 +858,13 @@ export default function App() {
     if (state?.phase === "RESULT" && prevPhaseRef.current !== "RESULT") {
       const me = state.players.find(p => p.name === name);
       if (me?.result) {
-        // Show result overlay
         setMyResult(me.result);
         setShowResult(true);
         
-        // Hide after 3 seconds
         setTimeout(() => {
           setShowResult(false);
         }, 3000);
 
-        // Update stats
         const newStats = { ...stats };
         newStats.gamesPlayed++;
         if (me.result === "WIN" || me.result === "BLACKJACK") {
@@ -857,10 +931,12 @@ export default function App() {
     if (me) handleBet(me.stack);
   };
 
+  // FIXED: Clear Bet funktioniert jetzt richtig
   const handleClearBet = () => {
     const me = state?.players.find(p => p.name === name);
     if (me && me.bet > 0) {
-      send("clearbet");
+      // Gebe Chips zurück an Stack
+      send("bet", { value: -me.bet });
     }
   };
 
@@ -876,14 +952,9 @@ export default function App() {
     setRoomCode("");
   };
 
+  // FIXED: Chat sendet jetzt richtig
   const handleSendChat = (message: string) => {
-    const newMsg: ChatMessage = {
-      id: Math.random().toString(36),
-      player: name,
-      message,
-      timestamp: Date.now()
-    };
-    setChatMessages((prev) => [...prev, newMsg].slice(-50));
+    send("chat", { text: message });
   };
 
   const me = state?.players.find(p => p.name === name);
@@ -1044,6 +1115,19 @@ export default function App() {
                     <div className="text-2xl font-bold">{dealerValue}</div>
                   )}
                 </div>
+                
+                {/* FIXED: Shoe Position (top-left corner) */}
+                <div className="absolute top-4 left-4 bg-blue-900/80 rounded-lg p-2 border-2 border-blue-700 shadow-xl">
+                  <div className="text-xs opacity-70">SHOE</div>
+                  <div className="text-2xl">🎴</div>
+                </div>
+
+                {/* FIXED: Discard Pile (top-right corner) */}
+                <div className="absolute top-4 right-4 bg-gray-800/80 rounded-lg p-2 border-2 border-gray-700 shadow-xl">
+                  <div className="text-xs opacity-70">DISCARD</div>
+                  <div className="text-2xl">🗑️</div>
+                </div>
+
                 <div className="flex justify-center gap-2 flex-wrap min-h-[8rem] items-center">
                   {state?.dealer.cards.map((card, idx) => (
                     <CardComponent 
@@ -1052,26 +1136,14 @@ export default function App() {
                       hidden={idx === 1 && !showDealerSecondCard}
                       flip={idx === 1 && showDealerSecondCard && state.phase === "DEALER"}
                       playSound={true}
+                      fromShoe={true}
                     />
                   ))}
                 </div>
               </div>
 
-              {/* Pot & Timer */}
+              {/* Timer */}
               <div className="flex flex-col items-center gap-4 my-8">
-                {state?.players && state.players.some(p => p.bet > 0) && (
-                  <motion.div
-                    initial={{ scale: 0, y: 50 }}
-                    animate={{ scale: 1, y: 0 }}
-                    className="bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-full w-32 h-32 flex flex-col items-center justify-center font-bold shadow-2xl border-4 border-yellow-400"
-                  >
-                    <div className="text-sm text-yellow-900">POT</div>
-                    <div className="text-2xl text-yellow-900">
-                      ${state.players.reduce((sum, p) => sum + p.bet, 0)}
-                    </div>
-                  </motion.div>
-                )}
-
                 <TurnTimer 
                   isActive={state?.phase === "PLAYER"} 
                   currentPlayer={currentPlayer?.name || null}
@@ -1170,24 +1242,31 @@ export default function App() {
                   </div>
                 )}
 
-                {state?.phase === "INSURANCE" && canInsure && isMyTurn && (
+                {/* FIXED: Insurance UI - alle Spieler sehen Buttons */}
+                {state?.phase === "INSURANCE" && canInsure && (
                   <div className="text-center space-y-4">
                     <div className="text-xl font-bold animate-pulse">Insurance Available!</div>
                     <div className="text-sm opacity-80">Dealer showing Ace</div>
-                    <div className="flex justify-center gap-4">
-                      <button
-                        onClick={handleInsurance}
-                        className="bg-yellow-600 hover:bg-yellow-700 px-8 py-4 rounded-lg font-bold text-lg"
-                      >
-                        💰 Buy Insurance
-                      </button>
-                      <button
-                        onClick={handleStand}
-                        className="bg-gray-600 hover:bg-gray-700 px-8 py-4 rounded-lg font-bold text-lg"
-                      >
-                        ❌ No Thanks
-                      </button>
-                    </div>
+                    {isMyTurn ? (
+                      <div className="flex justify-center gap-4">
+                        <button
+                          onClick={handleInsurance}
+                          className="bg-yellow-600 hover:bg-yellow-700 px-8 py-4 rounded-lg font-bold text-lg"
+                        >
+                          💰 Buy Insurance
+                        </button>
+                        <button
+                          onClick={() => send("stand")}
+                          className="bg-gray-600 hover:bg-gray-700 px-8 py-4 rounded-lg font-bold text-lg"
+                        >
+                          ❌ No Thanks
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="text-lg opacity-70">
+                        Waiting for {currentPlayer?.name} to decide...
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -1256,3 +1335,4 @@ export default function App() {
     </div>
   );
 }
+            
