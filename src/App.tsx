@@ -261,10 +261,6 @@ const themes = {
 };
 
 // ===================== Components =====================
-function OwnerBadge() {
-  return <span className="ml-2 px-2 py-0.5 text-xs rounded-full bg-yellow-500 text-black font-bold">Owner</span>;
-}
-
 function ResultOverlay({ result }: { result: string }) {
   const config = {
     BLACKJACK: {
