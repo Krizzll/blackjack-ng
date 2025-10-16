@@ -730,7 +730,7 @@ function HelpOverlay({ onClose }: { onClose: () => void }) {
 
 // ===================== Main App =====================
 export default function App() {
-  const WS_URL = "ws://localhost:8080";
+  const WS_URL = "wss://blackjack-server-production-0a13.up.railway.app";
   const { connected, state, send, joinRoom, reconnecting } = useWs(WS_URL);
   const { sounds, muted, setMuted } = useSounds();
   
