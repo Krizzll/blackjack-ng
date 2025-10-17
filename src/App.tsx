@@ -267,103 +267,6 @@ const themes = {
 
 // ===================== Components =====================
 
-// FIXED: Chip Flying Animation Component
-function FlyingChip({ 
-  isWin, 
-  amount, 
-  startPos, 
-  endPos 
-}: { 
-  isWin: boolean; 
-  amount: number; 
-  startPos: { x: number; y: number }; 
-  endPos: { x: number; y: number };
-}) {
-  return (
-    <motion.div
-      initial={{ x: startPos.x, y: startPos.y, scale: 1, opacity: 1 }}
-      animate={{ 
-        x: endPos.x, 
-        y: endPos.y, 
-        scale: isWin ? 1.5 : 0.5,
-        opacity: isWin ? 1 : 0
-      }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.8, ease: "easeInOut" }}
-      className={`fixed w-16 h-16 rounded-full ${
-        isWin ? "bg-gradient-to-br from-green-400 to-green-600" : "bg-gradient-to-br from-red-400 to-red-600"
-      } flex items-center justify-center font-bold text-white shadow-2xl z-50 pointer-events-none`}
-    >
-      ${amount}
-    </motion.div>
-  );
-}
-
-function ResultOverlay({ result }: { result: string }) {
-  const config = {
-    BLACKJACK: {
-      emoji: "🎉",
-      text: "BLACKJACK!",
-      color: "from-yellow-500 to-orange-500",
-      animation: "animate-bounce"
-    },
-    WIN: {
-      emoji: "✨",
-      text: "YOU WIN!",
-      color: "from-green-500 to-emerald-500",
-      animation: "animate-pulse"
-    },
-    LOSE: {
-      emoji: "💔",
-      text: "YOU LOSE",
-      color: "from-red-500 to-rose-500",
-      animation: "animate-pulse"
-    },
-    BUST: {
-      emoji: "💥",
-      text: "BUST!",
-      color: "from-red-600 to-red-800",
-      animation: "animate-bounce"
-    },
-    PUSH: {
-      emoji: "🤝",
-      text: "PUSH",
-      color: "from-blue-500 to-cyan-500",
-      animation: "animate-pulse"
-    }
-  };
-
-  const current = config[result as keyof typeof config] || config.PUSH;
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.5 }}
-      animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.5 }}
-      transition={{ type: "spring", stiffness: 200 }}
-      className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 pointer-events-none"
-    >
-      <div className={`text-center ${current.animation}`}>
-        <motion.div
-          animate={{ rotate: [0, -10, 10, -10, 10, 0] }}
-          transition={{ duration: 0.5, repeat: 2 }}
-          className="text-9xl mb-4"
-        >
-          {current.emoji}
-        </motion.div>
-        <div className={`text-7xl font-black bg-gradient-to-r ${current.color} bg-clip-text text-transparent drop-shadow-2xl`}>
-          {current.text}
-        </div>
-        {result === "BLACKJACK" && (
-          <div className="text-3xl text-yellow-300 mt-4 font-bold">
-            2.5x Payout! 💰
-          </div>
-        )}
-      </div>
-    </motion.div>
-  );
-}
-
 function ShuffleAnimation({ sounds }: { sounds: any }) {
   useEffect(() => {
     sounds.shuffle();
@@ -415,7 +318,7 @@ function Confetti() {
   );
 }
 
-// FIXED: Card Component mit Fly-Animation aus Shoe und discard
+// FIXED: Card Component mit Discard Animation
 function CardComponent({ 
   card, 
   hidden = false, 
@@ -588,7 +491,7 @@ function PlayerSpot({
           showWin && isWin ? "ring-4 ring-green-400 shadow-green-500/50" : ""
         }`}
       >
-        {/* Balance Anzeige */}
+        {/* FIXED: Balance Anzeige übersichtlicher */}
         <div className="text-center mb-3 bg-black/30 rounded-lg p-2">
           <div className="font-bold text-xl text-yellow-400">{player.name}</div>
           <div className="flex items-center justify-center gap-2 mt-1">
@@ -615,7 +518,7 @@ function PlayerSpot({
           </div>
         )}
 
-        {/* Chip Display */}
+        {/* FIXED: Chip Display - visuell verbessert */}
         {player.bet > 0 && (
           <motion.div
             initial={{ scale: 0 }}
@@ -859,8 +762,6 @@ export default function App() {
   });
   const [showHelp, setShowHelp] = useState(false);
   const [lastBet, setLastBet] = useState(0);
-  const [showResult, setShowResult] = useState(false);
-  const [myResult, setMyResult] = useState<string | null>(null);
   const [discardCards, setDiscardCards] = useState(false);
 
   const prevPhaseRef = useRef<string | null>(null);
@@ -891,13 +792,6 @@ export default function App() {
     if (state?.phase === "RESULT" && prevPhaseRef.current !== "RESULT") {
       const me = state.players.find(p => p.name === name);
       if (me?.result) {
-        setMyResult(me.result);
-        setShowResult(true);
-        
-        setTimeout(() => {
-          setShowResult(false);
-        }, 3000);
-
         const newStats = { ...stats };
         newStats.gamesPlayed++;
         if (me.result === "WIN" || me.result === "BLACKJACK") {
@@ -919,16 +813,22 @@ export default function App() {
     prevPhaseRef.current = state?.phase || null;
   }, [state?.phase]);
 
+  // FIXED: Discard Animation
   useEffect(() => {
-    const handleKeyPress = (e: KeyboardEvent) => {
-      if (!isMyTurn) return;
-      if (e.key === "h" || e.key === "H") handleHit();
-      if (e.key === "s" || e.key === "S") handleStand();
-      if (e.key === "d" || e.key === "D") handleDouble();
-    };
-    window.addEventListener("keypress", handleKeyPress);
-    return () => window.removeEventListener("keypress", handleKeyPress);
-  }, [state]);
+    if (state?.phase === "RESULT") {
+      const timer = setTimeout(() => {
+        setDiscardCards(true);
+        
+        setTimeout(() => {
+          setDiscardCards(false);
+        }, 1000);
+      }, 3000);
+      
+      return () => clearTimeout(timer);
+    } else {
+      setDiscardCards(false);
+    }
+  }, [state?.phase]);
 
   const handleCreateRoom = () => {
     if (!name.trim()) { alert("Enter your name!"); return; }
@@ -965,12 +865,12 @@ export default function App() {
   };
 
   // FIXED: Clear Bet sendet jetzt "clearbet" type
-const handleClearBet = () => {
-  const me = state?.players.find(p => p.name === name);
-  if (me && me.bet > 0) {
-    send("clearbet");
-  }
-};
+  const handleClearBet = () => {
+    const me = state?.players.find(p => p.name === name);
+    if (me && me.bet > 0) {
+      send("clearbet");
+    }
+  };
 
   const handleStart = () => send("start");
   const handleHit = () => { sounds.cardDeal(); send("hit"); };
@@ -995,6 +895,17 @@ const handleClearBet = () => {
   const dealerValue = calculateValue(state?.dealer.cards || []);
   const showDealerSecondCard = state?.phase === "DEALER" || state?.phase === "RESULT";
   const canInsure = state?.phase === "INSURANCE" && state.dealer.cards[0]?.rank === "A";
+
+useEffect(() => {
+    const handleKeyPress = (e: KeyboardEvent) => {
+      if (!isMyTurn) return;
+      if (e.key === "h" || e.key === "H") handleHit();
+      if (e.key === "s" || e.key === "S") handleStand();
+      if (e.key === "d" || e.key === "D") handleDouble();
+    };
+    window.addEventListener("keypress", handleKeyPress);
+    return () => window.removeEventListener("keypress", handleKeyPress);
+  }, [state]);
 
   return (
     <div className={`min-h-screen bg-gradient-to-br ${themes[theme]} text-white font-sans p-4 relative`}>
@@ -1025,7 +936,6 @@ const handleClearBet = () => {
         {state?.phase === "SHUFFLING" && <ShuffleAnimation sounds={sounds} />}
       </AnimatePresence>
 
-     
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex justify-between items-center mb-4">
@@ -1105,15 +1015,15 @@ const handleClearBet = () => {
             </div>
           </motion.div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
             {/* Left Sidebar */}
-            <div className="space-y-4">
+            <div className="lg:col-span-1 space-y-4">
               <ChatPanel messages={chatMessages} onSend={handleSendChat} />
               <StatsPanel stats={stats} />
             </div>
 
             {/* Main Game Area */}
-            <div className="lg:col-span-3 space-y-6">
+            <div className="lg:col-span-4 space-y-6">
               {/* Room Info */}
               <div className="bg-green-800/60 backdrop-blur-xl rounded-xl p-4 flex justify-between items-center">
                 <div>
@@ -1136,7 +1046,7 @@ const handleClearBet = () => {
               </div>
 
               {/* Dealer Section */}
-              <div className="bg-green-800/60 backdrop-blur-xl rounded-2xl p-6 shadow-2xl border-4 border-green-700/50">
+              <div className="bg-green-800/60 backdrop-blur-xl rounded-2xl p-6 shadow-2xl border-4 border-green-700/50 relative">
                 <div className="text-center mb-4">
                   <h3 className="font-bold text-xl mb-2">🎩 DEALER</h3>
                   {state?.dealer.cards && state.dealer.cards.length > 0 && showDealerSecondCard && (
@@ -1157,18 +1067,19 @@ const handleClearBet = () => {
                 </div>
 
                 <div className="flex justify-center gap-2 flex-wrap min-h-[8rem] items-center">
-  {state?.dealer.cards.map((card, idx) => (
-    <CardComponent 
-      key={card.id} 
-      card={card} 
-      hidden={idx === 1 && !showDealerSecondCard}
-      flip={idx === 1 && showDealerSecondCard && state.phase === "DEALER"}
-      playSound={true}
-      fromShoe={true}
-      toDiscard={discardCards}
-    />
-  ))}
-</div>
+                  {state?.dealer.cards.map((card, idx) => (
+                    <CardComponent 
+                      key={card.id} 
+                      card={card} 
+                      hidden={idx === 1 && !showDealerSecondCard}
+                      flip={idx === 1 && showDealerSecondCard && state.phase === "DEALER"}
+                      playSound={true}
+                      fromShoe={true}
+                      toDiscard={discardCards}
+                    />
+                  ))}
+                </div>
+              </div>
 
               {/* Timer */}
               <div className="flex flex-col items-center gap-4 my-8">
@@ -1182,18 +1093,18 @@ const handleClearBet = () => {
 
               {/* Players */}
               <div className={`grid gap-4 ${state?.players.length === 1 ? "grid-cols-1 max-w-md mx-auto" : state?.players.length === 2 ? "grid-cols-2" : "grid-cols-2 lg:grid-cols-3"}`}>
-  {state?.players.map((player, idx) => (
-    <PlayerSpot
-      key={player.id}
-      player={player}
-      isActive={state.phase === "PLAYER" && typeof state.turnIdx === 'number' && state.turnIdx === idx}
-      isMe={player.name === name}
-      showWin={state.phase === "RESULT"}
-      sounds={sounds}
-      toDiscard={discardCards}
-    />
-  ))}
-</div>
+                {state?.players.map((player, idx) => (
+                  <PlayerSpot
+                    key={player.id}
+                    player={player}
+                    isActive={state.phase === "PLAYER" && typeof state.turnIdx === 'number' && state.turnIdx === idx}
+                    isMe={player.name === name}
+                    showWin={state.phase === "RESULT"}
+                    sounds={sounds}
+                    toDiscard={discardCards}
+                  />
+                ))}
+              </div>
 
               {/* Controls */}
               <div className="bg-green-800/60 backdrop-blur-xl rounded-2xl p-6 shadow-2xl">
@@ -1364,4 +1275,3 @@ const handleClearBet = () => {
     </div>
   );
 }
-            
