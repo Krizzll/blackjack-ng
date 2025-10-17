@@ -415,19 +415,21 @@ function Confetti() {
   );
 }
 
-// FIXED: Card Component mit Fly-Animation aus Shoe
+// FIXED: Card Component mit Fly-Animation aus Shoe und discard
 function CardComponent({ 
   card, 
   hidden = false, 
   flip = false, 
   playSound = false,
-  fromShoe = false 
+  fromShoe = false,
+  toDiscard = false 
 }: { 
   card: Card; 
   hidden?: boolean; 
   flip?: boolean; 
   playSound?: boolean;
   fromShoe?: boolean;
+  toDiscard?: boolean;
 }) {
   const isRed = card.suit === "♥" || card.suit === "♦";
   const { sounds } = useSounds();
@@ -444,8 +446,14 @@ function CardComponent({
     return (
       <motion.div
         initial={fromShoe ? { scale: 0, rotateY: 180, x: -200, y: -300 } : { scale: 0, rotateY: 180 }}
-        animate={{ scale: 1, rotateY: 0, x: 0, y: 0 }}
-        transition={{ type: "spring", stiffness: 150, damping: 15 }}
+        animate={toDiscard ? { 
+          scale: 0.3, 
+          rotateY: 0, 
+          x: typeof window !== 'undefined' ? window.innerWidth - 150 : 500, 
+          y: -400,
+          opacity: 0 
+        } : { scale: 1, rotateY: 0, x: 0, y: 0 }}
+        transition={{ type: "spring", stiffness: 150, damping: 15, delay: toDiscard ? 0.2 : 0 }}
         className="bg-blue-900 rounded-lg shadow-lg w-16 h-24 sm:w-20 sm:h-28 flex items-center justify-center border-2 border-blue-700"
       >
         <div className="text-4xl">🂠</div>
@@ -456,8 +464,14 @@ function CardComponent({
   return (
     <motion.div
       initial={fromShoe ? { scale: 0, rotateY: 180, x: -200, y: -300 } : { scale: 0, rotateY: flip ? 180 : 180, x: -100 }}
-      animate={{ scale: 1, rotateY: 0, x: 0, y: 0 }}
-      transition={{ type: "spring", stiffness: 150, damping: 15, delay: flip ? 0.5 : 0 }}
+      animate={toDiscard ? { 
+        scale: 0.3, 
+        rotateY: 0, 
+        x: typeof window !== 'undefined' ? window.innerWidth - 150 : 500, 
+        y: -400,
+        opacity: 0 
+      } : { scale: 1, rotateY: 0, x: 0, y: 0 }}
+      transition={{ type: "spring", stiffness: 150, damping: 15, delay: toDiscard ? 0.2 : (flip ? 0.5 : 0) }}
       className="bg-white rounded-lg shadow-lg w-16 h-24 sm:w-20 sm:h-28 flex flex-col items-center justify-center border-2 border-gray-300"
     >
       <div className={`text-2xl sm:text-3xl ${isRed ? "text-red-600" : "text-gray-900"}`}>
@@ -542,13 +556,15 @@ function PlayerSpot({
   isActive, 
   isMe, 
   showWin,
-  sounds
+  sounds,
+  toDiscard = false
 }: { 
   player: Player; 
   isActive: boolean; 
   isMe: boolean; 
   showWin: boolean;
   sounds: any;
+  toDiscard?: boolean;
 }) {
   const handValue = calculateValue(player.cards);
   const isBust = handValue > 21;
@@ -572,7 +588,7 @@ function PlayerSpot({
           showWin && isWin ? "ring-4 ring-green-400 shadow-green-500/50" : ""
         }`}
       >
-        {/* FIXED: Balance Anzeige übersichtlicher */}
+        {/* Balance Anzeige */}
         <div className="text-center mb-3 bg-black/30 rounded-lg p-2">
           <div className="font-bold text-xl text-yellow-400">{player.name}</div>
           <div className="flex items-center justify-center gap-2 mt-1">
@@ -583,24 +599,29 @@ function PlayerSpot({
 
         <div className="flex justify-center gap-2 mb-3 min-h-[7rem]">
           {player.cards.map((card) => (
-            <CardComponent key={card.id} card={card} playSound={true} fromShoe={true} />
+            <CardComponent 
+              key={card.id} 
+              card={card} 
+              playSound={true} 
+              fromShoe={true}
+              toDiscard={toDiscard}
+            />
           ))}
         </div>
 
-        {player.cards.length > 0 && (
+        {player.cards.length > 0 && !toDiscard && (
           <div className={`text-center font-bold text-lg mb-2 ${isBust ? "text-red-400" : ""}`}>
             {handValue} {isBust && "BUST!"}
           </div>
         )}
 
-        {/* FIXED: Chip Display - visuell verbessert */}
+        {/* Chip Display */}
         {player.bet > 0 && (
           <motion.div
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             className="relative mx-auto w-24 h-24"
           >
-            {/* Chip Stack Visualization */}
             <div className="absolute inset-0 flex flex-col items-center justify-center">
               {[...Array(Math.min(5, Math.floor(player.bet / 100) + 1))].map((_, i) => (
                 <motion.div
@@ -620,10 +641,21 @@ function PlayerSpot({
           </motion.div>
         )}
 
-        {player.status && (
-          <div className="text-center mt-2 text-sm text-yellow-300 font-semibold">
+        {/* Status - klein und dezent */}
+        {player.status && !toDiscard && (
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className={`text-center mt-2 px-3 py-1 rounded-full text-sm font-bold inline-block ${
+              player.result === "WIN" || player.result === "BLACKJACK" 
+                ? "bg-green-500/80 text-white" 
+                : player.result === "LOSE" || player.result === "BUST"
+                ? "bg-red-500/80 text-white"
+                : "bg-blue-500/80 text-white"
+            }`}
+          >
             {player.status}
-          </div>
+          </motion.div>
         )}
 
         {isActive && (
@@ -829,6 +861,7 @@ export default function App() {
   const [lastBet, setLastBet] = useState(0);
   const [showResult, setShowResult] = useState(false);
   const [myResult, setMyResult] = useState<string | null>(null);
+  const [discardCards, setDiscardCards] = useState(false);
 
   const prevPhaseRef = useRef<string | null>(null);
 
@@ -931,14 +964,13 @@ export default function App() {
     if (me) handleBet(me.stack);
   };
 
-  // FIXED: Clear Bet funktioniert jetzt richtig
-  const handleClearBet = () => {
-    const me = state?.players.find(p => p.name === name);
-    if (me && me.bet > 0) {
-      // Gebe Chips zurück an Stack
-      send("bet", { value: -me.bet });
-    }
-  };
+  // FIXED: Clear Bet sendet jetzt "clearbet" type
+const handleClearBet = () => {
+  const me = state?.players.find(p => p.name === name);
+  if (me && me.bet > 0) {
+    send("clearbet");
+  }
+};
 
   const handleStart = () => send("start");
   const handleHit = () => { sounds.cardDeal(); send("hit"); };
@@ -993,11 +1025,7 @@ export default function App() {
         {state?.phase === "SHUFFLING" && <ShuffleAnimation sounds={sounds} />}
       </AnimatePresence>
 
-      {/* Result Overlay */}
-      <AnimatePresence>
-        {showResult && myResult && <ResultOverlay result={myResult} />}
-      </AnimatePresence>
-
+     
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex justify-between items-center mb-4">
@@ -1129,18 +1157,18 @@ export default function App() {
                 </div>
 
                 <div className="flex justify-center gap-2 flex-wrap min-h-[8rem] items-center">
-                  {state?.dealer.cards.map((card, idx) => (
-                    <CardComponent 
-                      key={card.id} 
-                      card={card} 
-                      hidden={idx === 1 && !showDealerSecondCard}
-                      flip={idx === 1 && showDealerSecondCard && state.phase === "DEALER"}
-                      playSound={true}
-                      fromShoe={true}
-                    />
-                  ))}
-                </div>
-              </div>
+  {state?.dealer.cards.map((card, idx) => (
+    <CardComponent 
+      key={card.id} 
+      card={card} 
+      hidden={idx === 1 && !showDealerSecondCard}
+      flip={idx === 1 && showDealerSecondCard && state.phase === "DEALER"}
+      playSound={true}
+      fromShoe={true}
+      toDiscard={discardCards}
+    />
+  ))}
+</div>
 
               {/* Timer */}
               <div className="flex flex-col items-center gap-4 my-8">
@@ -1154,17 +1182,18 @@ export default function App() {
 
               {/* Players */}
               <div className={`grid gap-4 ${state?.players.length === 1 ? "grid-cols-1 max-w-md mx-auto" : state?.players.length === 2 ? "grid-cols-2" : "grid-cols-2 lg:grid-cols-3"}`}>
-                {state?.players.map((player, idx) => (
-                  <PlayerSpot
-                    key={player.id}
-                    player={player}
-                    isActive={state.phase === "PLAYER" && typeof state.turnIdx === 'number' && state.turnIdx === idx}
-                    isMe={player.name === name}
-                    showWin={state.phase === "RESULT"}
-                    sounds={sounds}
-                  />
-                ))}
-              </div>
+  {state?.players.map((player, idx) => (
+    <PlayerSpot
+      key={player.id}
+      player={player}
+      isActive={state.phase === "PLAYER" && typeof state.turnIdx === 'number' && state.turnIdx === idx}
+      isMe={player.name === name}
+      showWin={state.phase === "RESULT"}
+      sounds={sounds}
+      toDiscard={discardCards}
+    />
+  ))}
+</div>
 
               {/* Controls */}
               <div className="bg-green-800/60 backdrop-blur-xl rounded-2xl p-6 shadow-2xl">
