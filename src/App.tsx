@@ -63,9 +63,7 @@ function useSounds() {
         gain.gain.value = 0.15;
         osc.start();
         osc.stop(ctx.currentTime + duration);
-      } catch (e) {
-        console.log("Audio not supported");
-      }
+      } catch (e) {}
     }, delay);
   };
 
@@ -206,7 +204,6 @@ function useWs(url: string) {
         const data = JSON.parse(e.data);
         console.log("📨 Received:", data);
         
-        // FIXED: Chat messages werden jetzt empfangen
         if (data.type === "chat") {
           setChatMessages(prev => [...prev, data.message].slice(-50));
         } else if (data.type === "state") {
@@ -318,7 +315,6 @@ function Confetti() {
   );
 }
 
-// FIXED: Card Component mit Discard Animation
 function CardComponent({ 
   card, 
   hidden = false, 
@@ -491,7 +487,6 @@ function PlayerSpot({
           showWin && isWin ? "ring-4 ring-green-400 shadow-green-500/50" : ""
         }`}
       >
-        {/* FIXED: Balance Anzeige übersichtlicher */}
         <div className="text-center mb-3 bg-black/30 rounded-lg p-2">
           <div className="font-bold text-xl text-yellow-400">{player.name}</div>
           <div className="flex items-center justify-center gap-2 mt-1">
@@ -518,7 +513,6 @@ function PlayerSpot({
           </div>
         )}
 
-        {/* FIXED: Chip Display - visuell verbessert */}
         {player.bet > 0 && (
           <motion.div
             initial={{ scale: 0 }}
@@ -544,7 +538,6 @@ function PlayerSpot({
           </motion.div>
         )}
 
-        {/* Status - klein und dezent */}
         {player.status && !toDiscard && (
           <motion.div 
             initial={{ opacity: 0, scale: 0.8 }}
@@ -813,16 +806,14 @@ export default function App() {
     prevPhaseRef.current = state?.phase || null;
   }, [state?.phase]);
 
-  // FIXED: Discard Animation
   useEffect(() => {
     if (state?.phase === "RESULT") {
       const timer = setTimeout(() => {
         setDiscardCards(true);
-        
         setTimeout(() => {
           setDiscardCards(false);
-        }, 1000);
-      }, 3000);
+        }, 1500);
+      }, 4000);
       
       return () => clearTimeout(timer);
     } else {
@@ -864,12 +855,8 @@ export default function App() {
     if (me) handleBet(me.stack);
   };
 
-  // FIXED: Clear Bet sendet jetzt "clearbet" type
   const handleClearBet = () => {
-    const me = state?.players.find(p => p.name === name);
-    if (me && me.bet > 0) {
-      send("clearbet");
-    }
+    send("clearbet");
   };
 
   const handleStart = () => send("start");
@@ -884,7 +871,6 @@ export default function App() {
     setRoomCode("");
   };
 
-  // FIXED: Chat sendet jetzt richtig
   const handleSendChat = (message: string) => {
     send("chat", { text: message });
   };
@@ -896,7 +882,7 @@ export default function App() {
   const showDealerSecondCard = state?.phase === "DEALER" || state?.phase === "RESULT";
   const canInsure = state?.phase === "INSURANCE" && state.dealer.cards[0]?.rank === "A";
 
-useEffect(() => {
+  useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
       if (!isMyTurn) return;
       if (e.key === "h" || e.key === "H") handleHit();
@@ -905,11 +891,10 @@ useEffect(() => {
     };
     window.addEventListener("keypress", handleKeyPress);
     return () => window.removeEventListener("keypress", handleKeyPress);
-  }, [state]);
+  }, [isMyTurn]);
 
   return (
     <div className={`min-h-screen bg-gradient-to-br ${themes[theme]} text-white font-sans p-4 relative`}>
-      {/* Reconnecting Overlay */}
       <AnimatePresence>
         {reconnecting && !connected && (
           <motion.div
@@ -926,18 +911,15 @@ useEffect(() => {
         )}
       </AnimatePresence>
 
-      {/* Help Overlay */}
       <AnimatePresence>
         {showHelp && <HelpOverlay onClose={() => setShowHelp(false)} />}
       </AnimatePresence>
 
-      {/* Shuffle Animation */}
       <AnimatePresence>
         {state?.phase === "SHUFFLING" && <ShuffleAnimation sounds={sounds} />}
       </AnimatePresence>
 
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
+      <div className="max-w-[1920px] mx-auto">
         <div className="flex justify-between items-center mb-4">
           <h1 className="text-2xl sm:text-3xl font-bold">🃏 Blackjack Pro</h1>
           <div className="flex items-center gap-3">
@@ -960,7 +942,6 @@ useEffect(() => {
           </div>
         </div>
 
-        {/* Lobby */}
         {!joined ? (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -1015,16 +996,13 @@ useEffect(() => {
             </div>
           </motion.div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-            {/* Left Sidebar */}
-            <div className="lg:col-span-1 space-y-4">
+          <div className="flex gap-4">
+            <div className="w-80 flex-shrink-0 space-y-4">
               <ChatPanel messages={chatMessages} onSend={handleSendChat} />
               <StatsPanel stats={stats} />
             </div>
 
-            {/* Main Game Area */}
-            <div className="lg:col-span-4 space-y-6">
-              {/* Room Info */}
+            <div className="flex-1 max-w-5xl mx-auto space-y-6">
               <div className="bg-green-800/60 backdrop-blur-xl rounded-xl p-4 flex justify-between items-center">
                 <div>
                   <span className="text-sm opacity-80">Room:</span>
@@ -1045,7 +1023,6 @@ useEffect(() => {
                 </button>
               </div>
 
-              {/* Dealer Section */}
               <div className="bg-green-800/60 backdrop-blur-xl rounded-2xl p-6 shadow-2xl border-4 border-green-700/50 relative">
                 <div className="text-center mb-4">
                   <h3 className="font-bold text-xl mb-2">🎩 DEALER</h3>
@@ -1054,13 +1031,11 @@ useEffect(() => {
                   )}
                 </div>
                 
-                {/* FIXED: Shoe Position (top-left corner) */}
                 <div className="absolute top-4 left-4 bg-blue-900/80 rounded-lg p-2 border-2 border-blue-700 shadow-xl">
                   <div className="text-xs opacity-70">SHOE</div>
                   <div className="text-2xl">🎴</div>
                 </div>
 
-                {/* FIXED: Discard Pile (top-right corner) */}
                 <div className="absolute top-4 right-4 bg-gray-800/80 rounded-lg p-2 border-2 border-gray-700 shadow-xl">
                   <div className="text-xs opacity-70">DISCARD</div>
                   <div className="text-2xl">🗑️</div>
@@ -1081,8 +1056,7 @@ useEffect(() => {
                 </div>
               </div>
 
-              {/* Timer */}
-              <div className="flex flex-col items-center gap-4 my-8">
+              <div className="flex flex-col items-center gap-4 my-6">
                 <TurnTimer 
                   isActive={state?.phase === "PLAYER"} 
                   currentPlayer={currentPlayer?.name || null}
@@ -1091,7 +1065,6 @@ useEffect(() => {
                 />
               </div>
 
-              {/* Players */}
               <div className={`grid gap-4 ${state?.players.length === 1 ? "grid-cols-1 max-w-md mx-auto" : state?.players.length === 2 ? "grid-cols-2" : "grid-cols-2 lg:grid-cols-3"}`}>
                 {state?.players.map((player, idx) => (
                   <PlayerSpot
@@ -1106,7 +1079,6 @@ useEffect(() => {
                 ))}
               </div>
 
-              {/* Controls */}
               <div className="bg-green-800/60 backdrop-blur-xl rounded-2xl p-6 shadow-2xl">
                 {state?.phase === "LOBBY" && (
                   <div className="space-y-6">
@@ -1182,7 +1154,6 @@ useEffect(() => {
                   </div>
                 )}
 
-                {/* FIXED: Insurance UI - alle Spieler sehen Buttons */}
                 {state?.phase === "INSURANCE" && canInsure && (
                   <div className="text-center space-y-4">
                     <div className="text-xl font-bold animate-pulse">Insurance Available!</div>
