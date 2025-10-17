@@ -598,7 +598,7 @@ function PlayerSpot({
 
 function ChatPanel({ messages, onSend }: { messages: ChatMessage[]; onSend: (msg: string) => void }) {
   const [input, setInput] = useState("");
-  const emojis = ["👍", "🎉", "😅", "🔥", "💰", "😎"];
+  const emojis = ["👍", "😅", "🔥", "💰", "😎"];
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -762,8 +762,7 @@ function HelpOverlay({ onClose }: { onClose: () => void }) {
 
 // ===================== Main App =====================
 export default function App() {
-  const WS_URL = "wss://blackjack-server-production-
-onst WS_URL = "wss://blackjack-server-production-0a13.up.railway.app";
+const WS_URL = "wss://blackjack-server-production-0a13.up.railway.app";
   const { connected, state, send, joinRoom, reconnecting, chatMessages } = useWs(WS_URL);
   const { sounds, muted, setMuted } = useSounds();
   
