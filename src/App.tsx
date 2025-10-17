@@ -68,6 +68,7 @@ function useSounds() {
   };
 
   const playMelody = (notes: number[]) => {
+    if (muted) return;
     notes.forEach((note, i) => playBeep(note, 0.15, i * 120));
   };
 
@@ -321,7 +322,8 @@ function CardComponent({
   flip = false, 
   playSound = false,
   fromShoe = false,
-  toDiscard = false 
+  toDiscard = false,
+  muted = false
 }: { 
   card: Card; 
   hidden?: boolean; 
@@ -329,17 +331,38 @@ function CardComponent({
   playSound?: boolean;
   fromShoe?: boolean;
   toDiscard?: boolean;
+  muted?: boolean;
 }) {
   const isRed = card.suit === "♥" || card.suit === "♦";
-  const { sounds } = useSounds();
   const hasPlayedRef = useRef(false);
   
   useEffect(() => {
-    if (playSound && !hidden && !hasPlayedRef.current) {
-      sounds.cardDeal();
+    if (playSound && !hidden && !hasPlayedRef.current && !muted) {
+      try {
+        const ctx = new AudioContext();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        const filter = ctx.createBiquadFilter();
+        
+        osc.connect(filter);
+        filter.connect(gain);
+        gain.connect(ctx.destination);
+        
+        filter.type = "lowpass";
+        filter.frequency.value = 2000;
+        
+        osc.frequency.setValueAtTime(150, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(100, ctx.currentTime + 0.15);
+        
+        gain.gain.setValueAtTime(0.2, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
+        
+        osc.start();
+        osc.stop(ctx.currentTime + 0.15);
+      } catch (e) {}
       hasPlayedRef.current = true;
     }
-  }, [playSound, hidden]);
+  }, [playSound, hidden, muted]);
   
   if (hidden && !flip) {
     return (
@@ -456,7 +479,8 @@ function PlayerSpot({
   isMe, 
   showWin,
   sounds,
-  toDiscard = false
+  toDiscard = false,
+  muted = false
 }: { 
   player: Player; 
   isActive: boolean; 
@@ -464,6 +488,7 @@ function PlayerSpot({
   showWin: boolean;
   sounds: any;
   toDiscard?: boolean;
+  muted?: boolean;
 }) {
   const handValue = calculateValue(player.cards);
   const isBust = handValue > 21;
@@ -503,6 +528,7 @@ function PlayerSpot({
               playSound={true} 
               fromShoe={true}
               toDiscard={toDiscard}
+              muted={muted}
             />
           ))}
         </div>
@@ -542,7 +568,7 @@ function PlayerSpot({
           <motion.div 
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
-            className={`text-center mt-2 px-3 py-1 rounded-full text-sm font-bold inline-block ${
+            className={`text-center mt-2 px-3 py-1 rounded-full text-sm font-bold ${
               player.result === "WIN" || player.result === "BLACKJACK" 
                 ? "bg-green-500/80 text-white" 
                 : player.result === "LOSE" || player.result === "BUST"
@@ -736,7 +762,8 @@ function HelpOverlay({ onClose }: { onClose: () => void }) {
 
 // ===================== Main App =====================
 export default function App() {
-  const WS_URL = "wss://blackjack-server-production-0a13.up.railway.app";
+  const WS_URL = "wss://blackjack-server-production-
+onst WS_URL = "wss://blackjack-server-production-0a13.up.railway.app";
   const { connected, state, send, joinRoom, reconnecting, chatMessages } = useWs(WS_URL);
   const { sounds, muted, setMuted } = useSounds();
   
@@ -855,10 +882,6 @@ export default function App() {
     if (me) handleBet(me.stack);
   };
 
-  const handleClearBet = () => {
-    send("clearbet");
-  };
-
   const handleStart = () => send("start");
   const handleHit = () => { sounds.cardDeal(); send("hit"); };
   const handleStand = () => send("stand");
@@ -923,15 +946,15 @@ export default function App() {
         <div className="flex justify-between items-center mb-4">
           <h1 className="text-2xl sm:text-3xl font-bold">🃏 Blackjack Pro</h1>
           <div className="flex items-center gap-3">
-            <button onClick={() => setShowHelp(true)} className="p-2 hover:bg-white/10 rounded-lg">
+            <button onClick={() => setShowHelp(true)} className="p-2 hover:bg-white/10 rounded-lg transition">
               <HelpCircle size={20} />
             </button>
-            <button onClick={() => setMuted(!muted)} className="p-2 hover:bg-white/10 rounded-lg">
+            <button onClick={() => setMuted(!muted)} className="p-2 hover:bg-white/10 rounded-lg transition">
               {muted ? <VolumeX size={20} /> : <Volume2 size={20} />}
             </button>
             <button
               onClick={() => setTheme(t => t === "classic" ? "neon" : t === "neon" ? "dark" : t === "dark" ? "luxury" : "classic")}
-              className="p-2 hover:bg-white/10 rounded-lg"
+              className="p-2 hover:bg-white/10 rounded-lg transition"
             >
               <Palette size={20} />
             </button>
@@ -996,13 +1019,13 @@ export default function App() {
             </div>
           </motion.div>
         ) : (
-          <div className="flex gap-4">
+          <div className="flex gap-6">
             <div className="w-80 flex-shrink-0 space-y-4">
               <ChatPanel messages={chatMessages} onSend={handleSendChat} />
               <StatsPanel stats={stats} />
             </div>
 
-            <div className="flex-1 max-w-5xl mx-auto space-y-6">
+            <div className="flex-1 max-w-4xl mx-auto space-y-6">
               <div className="bg-green-800/60 backdrop-blur-xl rounded-xl p-4 flex justify-between items-center">
                 <div>
                   <span className="text-sm opacity-80">Room:</span>
@@ -1051,6 +1074,7 @@ export default function App() {
                       playSound={true}
                       fromShoe={true}
                       toDiscard={discardCards}
+                      muted={muted}
                     />
                   ))}
                 </div>
@@ -1075,6 +1099,7 @@ export default function App() {
                     showWin={state.phase === "RESULT"}
                     sounds={sounds}
                     toDiscard={discardCards}
+                    muted={muted}
                   />
                 ))}
               </div>
@@ -1097,25 +1122,17 @@ export default function App() {
                       <div className="flex justify-between items-center mb-3">
                         <h3 className="font-semibold">Place Your Bet</h3>
                         <div className="flex gap-2">
-                          {me && me.bet > 0 && (
-                            <button
-                              onClick={handleClearBet}
-                              className="text-sm bg-red-600 hover:bg-red-700 px-3 py-1 rounded-lg"
-                            >
-                              ❌ Clear Bet
-                            </button>
-                          )}
                           {lastBet > 0 && (
                             <button
                               onClick={handleRepeatBet}
-                              className="text-sm bg-purple-600 hover:bg-purple-700 px-3 py-1 rounded-lg"
+                              className="text-sm bg-purple-600 hover:bg-purple-700 px-3 py-1 rounded-lg transition"
                             >
                               🔁 Repeat ${lastBet}
                             </button>
                           )}
                           <button
                             onClick={handleAllIn}
-                            className="text-sm bg-orange-600 hover:bg-orange-700 px-3 py-1 rounded-lg"
+                            className="text-sm bg-orange-600 hover:bg-orange-700 px-3 py-1 rounded-lg transition"
                           >
                             💥 All In
                           </button>
@@ -1162,13 +1179,13 @@ export default function App() {
                       <div className="flex justify-center gap-4">
                         <button
                           onClick={handleInsurance}
-                          className="bg-yellow-600 hover:bg-yellow-700 px-8 py-4 rounded-lg font-bold text-lg"
+                          className="bg-yellow-600 hover:bg-yellow-700 px-8 py-4 rounded-lg font-bold text-lg transition"
                         >
                           💰 Buy Insurance
                         </button>
                         <button
                           onClick={() => send("stand")}
-                          className="bg-gray-600 hover:bg-gray-700 px-8 py-4 rounded-lg font-bold text-lg"
+                          className="bg-gray-600 hover:bg-gray-700 px-8 py-4 rounded-lg font-bold text-lg transition"
                         >
                           ❌ No Thanks
                         </button>
