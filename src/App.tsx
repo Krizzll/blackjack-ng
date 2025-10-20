@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { MessageCircle, TrendingUp, HelpCircle, Volume2, VolumeX, Palette } from "lucide-react";
+import { MessageCircle, TrendingUp, HelpCircle, Volume2, VolumeX, Palette, Send } from "lucide-react";
 
 // ===================== Types =====================
 type Suit = "♠" | "♥" | "♦" | "♣";
@@ -596,9 +596,15 @@ function PlayerSpot({
   );
 }
 
-function ChatPanel({ messages, onSend }: { messages: ChatMessage[]; onSend: (msg: string) => void }) {
+// ===================== NEUER CHAT =====================
+function ChatPanel({ 
+  messages, 
+  onSend 
+}: { 
+  messages: ChatMessage[]; 
+  onSend: (msg: string) => void;
+}) {
   const [input, setInput] = useState("");
-  const emojis = ["👍", "😅", "🔥", "💰", "😎"];
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -606,52 +612,76 @@ function ChatPanel({ messages, onSend }: { messages: ChatMessage[]; onSend: (msg
   }, [messages]);
 
   const handleSend = () => {
-    if (input.trim()) {
-      onSend(input.trim());
+    const trimmed = input.trim();
+    if (trimmed) {
+      onSend(trimmed);
       setInput("");
     }
   };
 
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
+  };
+
   return (
-    <div className="bg-green-800/60 backdrop-blur-xl rounded-xl p-4 h-64 flex flex-col">
-      <h3 className="font-bold mb-2 flex items-center gap-2">
-        <MessageCircle size={18} /> Chat
-      </h3>
-      <div className="flex-1 overflow-y-auto space-y-2 mb-2">
-        {messages.map((msg) => (
-          <div key={msg.id} className="text-sm">
-            <span className="font-semibold text-yellow-400">{msg.playerName}:</span> {msg.text}
+    <div className="bg-green-800/70 backdrop-blur-xl rounded-xl shadow-2xl border border-green-700/50 flex flex-col h-80">
+      {/* Header */}
+      <div className="p-4 border-b border-green-700/50">
+        <h3 className="font-bold text-lg flex items-center gap-2">
+          <MessageCircle size={20} className="text-green-400" />
+          <span>Chat</span>
+        </h3>
+      </div>
+
+      {/* Messages */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-3">
+        {messages.length === 0 ? (
+          <div className="text-center text-sm opacity-50 mt-8">
+            No messages yet. Say hi! 👋
           </div>
-        ))}
+        ) : (
+          messages.map((msg) => (
+            <motion.div
+              key={msg.id}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-green-900/40 rounded-lg p-2 border border-green-700/30"
+            >
+              <div className="font-semibold text-yellow-400 text-sm">
+                {msg.playerName}
+              </div>
+              <div className="text-white text-sm mt-1 break-words">
+                {msg.text}
+              </div>
+            </motion.div>
+          ))
+        )}
         <div ref={messagesEndRef} />
       </div>
-      <div className="flex gap-2 mb-2">
-        {emojis.map((emoji) => (
+
+      {/* Input */}
+      <div className="p-4 border-t border-green-700/50">
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyPress={handleKeyPress}
+            placeholder="Type a message..."
+            maxLength={150}
+            className="flex-1 px-4 py-2 rounded-lg bg-green-900/50 border border-green-700/50 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 transition"
+          />
           <button
-            key={emoji}
-            onClick={() => onSend(emoji)}
-            className="text-xl hover:scale-125 transition"
+            onClick={handleSend}
+            disabled={!input.trim()}
+            className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded-lg font-semibold transition flex items-center gap-2"
           >
-            {emoji}
+            <Send size={18} />
           </button>
-        ))}
-      </div>
-      <div className="flex gap-2">
-        <input
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyPress={(e) => e.key === "Enter" && handleSend()}
-          placeholder="Type message..."
-          className="flex-1 px-3 py-2 rounded-lg text-black text-sm"
-          maxLength={100}
-        />
-        <button
-          onClick={handleSend}
-          className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg font-semibold"
-        >
-          Send
-        </button>
+        </div>
       </div>
     </div>
   );
@@ -661,25 +691,26 @@ function StatsPanel({ stats }: { stats: Stats }) {
   const winRate = stats.gamesPlayed > 0 ? ((stats.wins / stats.gamesPlayed) * 100).toFixed(1) : "0.0";
 
   return (
-    <div className="bg-green-800/60 backdrop-blur-xl rounded-xl p-4">
-      <h3 className="font-bold mb-3 flex items-center gap-2">
-        <TrendingUp size={18} /> Statistics
+    <div className="bg-green-800/70 backdrop-blur-xl rounded-xl shadow-2xl border border-green-700/50 p-4">
+      <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
+        <TrendingUp size={20} className="text-green-400" />
+        <span>Statistics</span>
       </h3>
-      <div className="grid grid-cols-2 gap-3 text-sm">
-        <div>
-          <div className="opacity-80">Win Rate</div>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="bg-green-900/40 rounded-lg p-3 border border-green-700/30">
+          <div className="text-xs opacity-70 mb-1">Win Rate</div>
           <div className="text-2xl font-bold text-green-400">{winRate}%</div>
         </div>
-        <div>
-          <div className="opacity-80">Games</div>
+        <div className="bg-green-900/40 rounded-lg p-3 border border-green-700/30">
+          <div className="text-xs opacity-70 mb-1">Games</div>
           <div className="text-2xl font-bold">{stats.gamesPlayed}</div>
         </div>
-        <div>
-          <div className="opacity-80">Blackjacks</div>
+        <div className="bg-green-900/40 rounded-lg p-3 border border-green-700/30">
+          <div className="text-xs opacity-70 mb-1">Blackjacks</div>
           <div className="text-xl font-bold text-yellow-400">{stats.blackjacks}</div>
         </div>
-        <div>
-          <div className="opacity-80">Best Streak</div>
+        <div className="bg-green-900/40 rounded-lg p-3 border border-green-700/30">
+          <div className="text-xs opacity-70 mb-1">Best Streak</div>
           <div className="text-xl font-bold text-blue-400">{stats.bestStreak}</div>
         </div>
       </div>
@@ -762,7 +793,7 @@ function HelpOverlay({ onClose }: { onClose: () => void }) {
 
 // ===================== Main App =====================
 export default function App() {
-const WS_URL = "wss://blackjack-server-production-0a13.up.railway.app";
+  const WS_URL = "wss://blackjack-server-production-0a13.up.railway.app";
   const { connected, state, send, joinRoom, reconnecting, chatMessages } = useWs(WS_URL);
   const { sounds, muted, setMuted } = useSounds();
   
@@ -941,9 +972,9 @@ const WS_URL = "wss://blackjack-server-production-0a13.up.railway.app";
         {state?.phase === "SHUFFLING" && <ShuffleAnimation sounds={sounds} />}
       </AnimatePresence>
 
-      <div className="max-w-[1920px] mx-auto">
-        <div className="flex justify-between items-center mb-4">
-          <h1 className="text-2xl sm:text-3xl font-bold">🃏 Blackjack Pro</h1>
+      <div className="max-w-[1800px] mx-auto">
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-3xl font-bold">🃏 Blackjack Pro</h1>
           <div className="flex items-center gap-3">
             <button onClick={() => setShowHelp(true)} className="p-2 hover:bg-white/10 rounded-lg transition">
               <HelpCircle size={20} />
@@ -1018,14 +1049,15 @@ const WS_URL = "wss://blackjack-server-production-0a13.up.railway.app";
             </div>
           </motion.div>
         ) : (
-          <div className="flex gap-6">
-            <div className="w-80 flex-shrink-0 space-y-4">
+          <div className="grid grid-cols-[320px_1fr_320px] gap-6 items-start">
+            {/* LEFT SIDEBAR - Chat */}
+            <div className="space-y-4">
               <ChatPanel messages={chatMessages} onSend={handleSendChat} />
-              <StatsPanel stats={stats} />
             </div>
 
-            <div className="flex-1 max-w-4xl mx-auto space-y-6">
-              <div className="bg-green-800/60 backdrop-blur-xl rounded-xl p-4 flex justify-between items-center">
+            {/* CENTER - Game Area */}
+            <div className="space-y-6">
+              <div className="bg-green-800/60 backdrop-blur-xl rounded-xl p-4 flex justify-between items-center shadow-xl border border-green-700/50">
                 <div>
                   <span className="text-sm opacity-80">Room:</span>
                   <span className="font-mono font-bold text-xl ml-2">{state?.code || roomCode}</span>
@@ -1088,7 +1120,7 @@ const WS_URL = "wss://blackjack-server-production-0a13.up.railway.app";
                 />
               </div>
 
-              <div className={`grid gap-4 ${state?.players.length === 1 ? "grid-cols-1 max-w-md mx-auto" : state?.players.length === 2 ? "grid-cols-2" : "grid-cols-2 lg:grid-cols-3"}`}>
+              <div className={`grid gap-4 ${state?.players.length === 1 ? "grid-cols-1 max-w-md mx-auto" : state?.players.length === 2 ? "grid-cols-2" : "grid-cols-2 xl:grid-cols-3"}`}>
                 {state?.players.map((player, idx) => (
                   <PlayerSpot
                     key={player.id}
@@ -1103,7 +1135,7 @@ const WS_URL = "wss://blackjack-server-production-0a13.up.railway.app";
                 ))}
               </div>
 
-              <div className="bg-green-800/60 backdrop-blur-xl rounded-2xl p-6 shadow-2xl">
+              <div className="bg-green-800/60 backdrop-blur-xl rounded-2xl p-6 shadow-2xl border border-green-700/50">
                 {state?.phase === "LOBBY" && (
                   <div className="space-y-6">
                     <div className="flex justify-center gap-4">
@@ -1255,6 +1287,11 @@ const WS_URL = "wss://blackjack-server-production-0a13.up.railway.app";
                   </div>
                 )}
               </div>
+            </div>
+
+            {/* RIGHT SIDEBAR - Stats */}
+            <div className="space-y-4">
+              <StatsPanel stats={stats} />
             </div>
           </div>
         )}
